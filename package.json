@@ -1,0 +1,20 @@
+{
+  "name": "cluster",
+  "version": "1.0.0",
+  "keywords": [
+    "util",
+    "functional",
+    "server",
+    "client",
+    "browser"
+  ],
+  "author": "Alexey Kovalenko",
+  "contributors": [],
+  "dependencies": {
+    "async": "^2.0.1",
+    "minimist": "^1.2.0",
+    "redis": "^2.6.2",
+    "step": "0.0.6",
+    "underscore": "^1.8.3"
+  }
+}
