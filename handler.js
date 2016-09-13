@@ -14,51 +14,65 @@ module.exports = function (publisher, subscriber) {
     
     return {
     
-        clientId: null,
+        id: null,
         generatorId: null,
     
-        setClient: function(id) {
-            this.clientId = id;
+        /**
+         * Устанавливает идентификатор обработчика 
+         * 
+         * @param {String} id
+         */
+        setId: function(id) {
+            this.id = id;
         },
         
-        setGenerator: function(id) {
+        /**
+         * Устанавливает идентификатор генератора
+         * 
+         * @param {String} id
+         */
+        setGeneratorId: function(id) {
             this.generatorId = id;
         },
 
+        /**
+         * Публикует событие добавления нового обработчика сообщений
+         */
         add: function() {
-            if (this.clientId === this.generatorId) {
-                return;
-            }
-            publisher.publish('ADD:HANDLER', this.clientId); 
+            if (this.id !== this.generatorId) {
+                 publisher.publish('ADD:HANDLER', this.id); 
+            }  
         },
-
-        removeClient: function() { 
-            if (this.clientId === this.generatorId) {
-                return;
+        
+        /**
+         * Публикует событие удаления обработчика сообщений
+         */
+        remove: function() { 
+            
+            if (this.id !== this.generatorId) {
+                subscriber.unsubscribe();
+                publisher.publish('REMOVE:HANDLER', this.id); 
             }
-            subscriber.unsubscribe();
-            publisher.publish('REMOVE:HANDLER', this.clientId); 
+
         },
 
         subscribe: function() {
 
-            if (this.clientId === this.generatorId) {
+            if (this.id === this.generatorId) {
                 return;
             }
 
-            subscriber.subscribe(this.clientId + ':MESSAGE');
+            subscriber.subscribe(this.id + ':MESSAGE');
 
             subscriber.on("message", function(channel, message) {  
                 
-                if (channel === this.clientId + ':MESSAGE') {
+                if (channel === this.id + ':MESSAGE') {
                     log.info('Get a message:', message, 'to', channel);
                 }   
                 
             }.bind(this));
 
         } 
-    }
-}
-
-
-
+        
+    };
+};

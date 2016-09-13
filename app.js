@@ -19,8 +19,8 @@ var publisher   = redis.createClient();
 var generator   = require('./generator')(publisher, subscriber);
 var handler     = require('./handler')(publisher, subscriber);
 
-generator.setClient(clientID);
-handler.setClient(clientID);
+generator.setClientId(clientID);
+handler.setId(clientID);
 
 init('client1');
 
@@ -35,16 +35,12 @@ if (handler.clientId !== handler.generatorId) {
       subscriber.on("message", function(channel, message) {
 
         if (channel === 'SET:GENERATOR') {
-
-            handler.setGenerator(message);
-            generator.setId(message);
-
-            if (handler.clientId === message) {
+            
+            if (handler.id === message) {
                 subscriber.unsubscribe();
             }
-            
-            generator.subscribe();
-            handler.subscribe();
+
+            init(message);
             
             log.info('Swith generator to:', message);
 
@@ -60,8 +56,8 @@ if (handler.clientId !== handler.generatorId) {
  
  
 function shutdown() {
-    handler.removeClient();
-    generator.dump();
+    handler.remove();
+    generator.stop();
     
     process.exit(1);
 }
@@ -69,7 +65,7 @@ function shutdown() {
 
 function init(id) {
     generator.setId(id);
-    handler.setGenerator(id);
+    handler.setGeneratorId(id);
 
     generator.subscribe();
     handler.subscribe();
