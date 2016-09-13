@@ -1,5 +1,6 @@
 "use strict";
 
+var log = require('./log')(module);
 //function eventHandler(msg, callback){
 //    function onComplete(){
 //        var error = Math.random() > 0.85;
@@ -15,7 +16,7 @@ module.exports = function (publisher, subscriber) {
     
         clientId: null,
     
-        init: function(clientId) {
+        setClient: function(clientId) {
             this.clientId = clientId;
             this.add();
         },
@@ -27,7 +28,7 @@ module.exports = function (publisher, subscriber) {
             publisher.publish('addClient', this.clientId); 
         },
 
-        remove: function() { 
+        removeClient: function() { 
             if (this.clientId === 'client1') {
                 return;
             }
@@ -45,7 +46,7 @@ module.exports = function (publisher, subscriber) {
             subscriber.subscribe('shutdownGenerator');
 
             subscriber.on("message", function(channel, message) {
-                console.log('channel:', channel, 'message:', message);
+                log.ifo('Get a message:', message, 'from', channel);
             }.bind(this));
 
         } 
