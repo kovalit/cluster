@@ -1,6 +1,8 @@
 "use strict";
 
 var log = require('./log')(module);
+
+
 //function eventHandler(msg, callback){
 //    function onComplete(){
 //        var error = Math.random() > 0.85;
@@ -56,17 +58,22 @@ module.exports = function (publisher, subscriber) {
 
         },
 
+        /**
+         * Подписка на события от генератора
+         */
         subscribe: function() {
 
             if (this.id === this.generatorId) {
                 return;
             }
+            
+            var getMessageChannel = this.id + ':MESSAGE';
 
-            subscriber.subscribe(this.id + ':MESSAGE');
+            subscriber.subscribe(getMessageChannel);
 
             subscriber.on("message", function(channel, message) {  
                 
-                if (channel === this.id + ':MESSAGE') {
+                if (channel === getMessageChannel) {
                     log.info('Get a message:', message, 'to', channel);
                 }   
                 

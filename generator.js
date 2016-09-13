@@ -8,7 +8,14 @@ module.exports = function (publisher, subscriber) {
     
     return {
         
+        /**
+         * Идентификатор генератора
+         */
         id: null,
+        
+        /**
+         * Идентификатор текущего экземпляра программы
+         */
         clientId:  null,
         
 
@@ -47,6 +54,16 @@ module.exports = function (publisher, subscriber) {
             log.info('GENERATOR: Connect a new handler:', id);
         },
         
+        /**
+         * Получает идентификатор обработчика из пула генератора
+         * 
+         * @returns {Strind} _pool[rand]
+         */
+        getHandlerId: function(){
+            var rand = Math.floor(Math.random() * _pool.length);
+            return _pool[rand];
+        },
+        
         
         /**
          * Удаляет идентификатор обработчика событий из пула генератора
@@ -72,7 +89,7 @@ module.exports = function (publisher, subscriber) {
             
             _pool = JSON.parse(handlerList);
             
-            this.deleteHandlerId(this.id);
+            this.removeHandlerId(this.id);
             
             log.info('GENERATOR: Restore pool:', _pool);
         },
@@ -91,16 +108,22 @@ module.exports = function (publisher, subscriber) {
             subscriber.subscribe('REMOVE:HANDLER');
 
             subscriber.on("message", function(channel, message) {
-                
-                if (channel === 'ADD:HANDLER') {
+
+                switch (channel) {
                     
-                    this.addHandlerId(message);
-                    
-                } else if (channel === 'REMOVE:HANDLER') {
-                    
-                    this.removeHandlerId(message);
-                    
+                    case 'ADD:HANDLER':
+                        
+                        this.addHandlerId(message);
+                      
+                        break;
+                      
+                    case 'REMOVE:HANDLER':
+                        
+                        this.removeHandlerId(message);
+                      
+                        break;
                 }
+                
             }.bind(this));
         },
         
@@ -112,7 +135,7 @@ module.exports = function (publisher, subscriber) {
             this.cnt = this.cnt || 0;
             return this.cnt++;
         },
-
+        
 
         /**
          * Отправляет сообщения обработчикам
@@ -127,12 +150,12 @@ module.exports = function (publisher, subscriber) {
                 
                 if (_pool.length > 0) {
                     
-                    var rand = Math.floor(Math.random() * _pool.length);
-                    var message = this.getMessage();
+                    var handlerId   = this.getHandlerId();
+                    var message     = this.getMessage();
                     
-                    publisher.publish(_pool[rand] + ':MESSAGE', 'Hello ' + message);
+                    publisher.publish(handlerId + ':MESSAGE', 'Hello ' + message);
                     
-                    log.info('Send message:', _pool[rand], 'Hello ' + message); 
+                    log.info('GENERATOR: Send message:', handlerId, 'Hello ' + message); 
                     
                     this.send();
                 }
@@ -152,8 +175,13 @@ module.exports = function (publisher, subscriber) {
                 
                 subscriber.unsubscribe();
                 
-                publisher.publish('SET:GENERATOR', 'client2'); 
-                publisher.publish('client2:SET:POOL', JSON.stringify(_pool)); 
+                if (_pool.length > 0) {
+                    var handlerId       = this.getHandlerId();
+                    var setPoolChannel  = handlerId + ':SET:POOL';
+                    
+                    publisher.publish('SET:GENERATOR', handlerId); 
+                    publisher.publish(setPoolChannel, JSON.stringify(_pool)); 
+                }
                 
             }
           
