@@ -46,7 +46,7 @@ module.exports = function (publisher, subscriber) {
             subscriber.subscribe('shutdownGenerator');
 
             subscriber.on("message", function(channel, message) {
-                log.ifo('Get a message:', message, 'from', channel);
+                log.info('Get a message:', message, 'from', channel);
             }.bind(this));
 
         } 

@@ -16,7 +16,7 @@ module.exports = function (publisher, subscriber) {
         
         addPool: function(clientId) {
             _pool.push(clientId);
-            if (_pool.length > 0) {
+            if (_pool.length === 1) {
                 this.send();
             }
             log.info('Connect a new handler:', clientId);

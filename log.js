@@ -5,27 +5,22 @@ module.exports = function(module) {
 };
 
 function makeLogger(path) {
+    
+    var options = {     
+        colorize: true,
+        level: 'info'
+    };
 
-   // if (path.match(/generator.js$/)) {
-        
-        var transports = [
-            new winston.transports.Console({
-                timestamp: true,
-                colorize: true,
-                level: 'info'
-            }),
-            
-            //new winston.transport.File({filename: "debug.log", level: "debug" })
-        ];
-        
-        return new winston.Logger({transports: transports });  
-        
-//    } else {
-//        
-//        return new winston.Logger({
-//            transports: [] 
-//        });   
-//        
-//    }
+    if (path.match(/generator.js$/)) {
+        options.timestamp = true;
+    } 
+    
+    var transports = [
+        new winston.transports.Console(options)
+    ];
+    
+    return new winston.Logger({
+        transports: transports 
+    }); 
 }
 
