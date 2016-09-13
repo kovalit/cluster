@@ -9,10 +9,18 @@ module.exports = function (publisher, subscriber) {
     return {
         
         clientId:  null,
+        generatorId: null,
         
-        setClient: function(clientId) {
-            this.clientId = clientId;
+        setClient: function(id) {
+            this.clientId = id;
+            log.info('Set client ID:', id);
         },
+        
+        setId: function(id) {
+            this.generatorId = id;
+            log.info('Set generator ID:', id);
+        },
+
         
         addPool: function(clientId) {
             _pool.push(clientId);
@@ -20,6 +28,18 @@ module.exports = function (publisher, subscriber) {
                 this.send();
             }
             log.info('Connect a new handler:', clientId);
+        },
+        
+        
+        restorePool: function(pool) {
+            _pool = JSON.parse(pool);
+            for (var i = 0, length = _pool.length; i< length; i++) {
+                if  (_pool[i] === this.generatorId) {
+                    _pool.splice(i, 1);
+                }
+            }
+            
+            log.info('Restore pool:', _pool);
         },
 
 
@@ -34,18 +54,17 @@ module.exports = function (publisher, subscriber) {
 
         subscribe: function() {
 
-            if (this.clientId !== 'client1') {
+            if (this.clientId !== this.generatorId) {
                 return;
             }
 
-            subscriber.subscribe('addClient');
-            subscriber.subscribe('deleteClient');
+            subscriber.subscribe('ADD:HANDLER');
+            subscriber.subscribe('REMOVE:HANDLER');
 
             subscriber.on("message", function(channel, message) {
-                if (channel === 'addClient') {
+                if (channel === 'ADD:HANDLER') {
                     this.addPool(message);
-                }
-                if (channel === 'deleteClient') {
+                } else if (channel === 'REMOVE:HANDLER') {
                     this.deletePool(message);
                 }
             }.bind(this));
@@ -58,13 +77,13 @@ module.exports = function (publisher, subscriber) {
         },
 
         send: function() {
-            if (this.clientId !== 'client1') {
+            if (this.clientId !== this.generatorId) {
                 return;
             }
             setTimeout(function() {
                 if (_pool.length > 0) {
                     var rand = Math.floor(Math.random() * _pool.length);
-                    publisher.publish(_pool[rand], 'Hello');
+                    publisher.publish(_pool[rand]+':MESSAGE', 'Hello');
                     log.info('Send message:', _pool[rand], 'Hello'); 
                     this.send();
                 }
@@ -72,14 +91,12 @@ module.exports = function (publisher, subscriber) {
         },
         
         dump: function() {
-            if (this.clientId !== 'client1') {
+            if (this.clientId !== this.generatorId) {
                 return;
             }
             subscriber.unsubscribe();
-            for (var i = 0, length = _pool.length; i < length; i++) {
-                subscriber.sadd('clients', _pool[i]);
-            }
-            publisher.publish('shutdownGenerator', 1); 
+            publisher.publish('SET:GENERATOR', 'client2'); 
+            publisher.publish('client2:SET:POOL', JSON.stringify(_pool)); 
         }
     };  
 };

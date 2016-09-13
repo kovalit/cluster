@@ -15,38 +15,45 @@ module.exports = function (publisher, subscriber) {
     return {
     
         clientId: null,
+        generatorId: null,
     
-        setClient: function(clientId) {
-            this.clientId = clientId;
-            this.add();
+        setClient: function(id) {
+            this.clientId = id;
+        },
+        
+        setGenerator: function(id) {
+            this.generatorId = id;
         },
 
         add: function() {
-            if (this.clientId === 'client1') {
+            if (this.clientId === this.generatorId) {
                 return;
             }
-            publisher.publish('addClient', this.clientId); 
+            publisher.publish('ADD:HANDLER', this.clientId); 
         },
 
         removeClient: function() { 
-            if (this.clientId === 'client1') {
+            if (this.clientId === this.generatorId) {
                 return;
             }
             subscriber.unsubscribe();
-            publisher.publish('deleteClient', this.clientId); 
+            publisher.publish('REMOVE:HANDLER', this.clientId); 
         },
 
         subscribe: function() {
 
-            if (this.clientId === 'client1') {
+            if (this.clientId === this.generatorId) {
                 return;
             }
 
-            subscriber.subscribe(this.clientId);
-            subscriber.subscribe('shutdownGenerator');
+            subscriber.subscribe(this.clientId + ':MESSAGE');
 
-            subscriber.on("message", function(channel, message) {
-                log.info('Get a message:', message, 'from', channel);
+            subscriber.on("message", function(channel, message) {  
+                
+                if (channel === this.clientId + ':MESSAGE') {
+                    log.info('Get a message:', message, 'to', channel);
+                }   
+                
             }.bind(this));
 
         } 

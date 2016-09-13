@@ -11,36 +11,68 @@ if (!clientID) {
 
 log.info('Start client:', clientID);
 
-//
 var redis       = require('redis');
-//
+
 var subscriber  = redis.createClient();
 var publisher   = redis.createClient();
-
-
-
-
-//subscriber.smembers("clients", function (err, replies) {
-//    if(!err){
-//        console.log(replies);
-//    }
-//});
 
 var generator   = require('./generator')(publisher, subscriber);
 var handler     = require('./handler')(publisher, subscriber);
 
-
 generator.setClient(clientID);
-generator.subscribe();
-
 handler.setClient(clientID);
-handler.subscribe();
 
+init('client1');
+
+handler.add();
+
+// Switcher
+if (handler.clientId !== handler.generatorId) {
+    
+      subscriber.subscribe('SET:GENERATOR');
+      subscriber.subscribe(handler.clientId + ':SET:POOL');  
+
+      subscriber.on("message", function(channel, message) {
+
+        if (channel === 'SET:GENERATOR') {
+
+            handler.setGenerator(message);
+            generator.setId(message);
+
+            if (handler.clientId === message) {
+                subscriber.unsubscribe();
+            }
+            
+            generator.subscribe();
+            handler.subscribe();
+            
+            log.info('Swith generator to:', message);
+
+        } else if (channel === handler.clientId + ':SET:POOL') {
+
+            generator.restorePool(message);
+            generator.send();
+
+        }
+
+     });
+ }
+ 
+ 
 function shutdown() {
     handler.removeClient();
     generator.dump();
     
     process.exit(1);
+}
+
+
+function init(id) {
+    generator.setId(id);
+    handler.setGenerator(id);
+
+    generator.subscribe();
+    handler.subscribe();
 }
 
 process.on('SIGTERM', shutdown);
