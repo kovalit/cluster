@@ -2,22 +2,20 @@
 
 var log = require('./log')(module);
 
-
-//function eventHandler(msg, callback){
-//    function onComplete(){
-//        var error = Math.random() > 0.85;
-//        callback(error, msg);
-//    }
-//    // processing takes time...
-//    setTimeout(onComplete, Math.floor(Math.random()*1000));
-//}
-
-module.exports = function (publisher, subscriber) {
+module.exports = function (publisher, subscriber, errorCollector) {
     
     return {
-    
+        
+        /**
+         * Идентификатор обработчика
+         */
         id: null,
+        
+        /**
+         * Идентификатор генератора
+         */
         generatorId: null,
+    
     
         /**
          * Устанавливает идентификатор обработчика 
@@ -26,7 +24,9 @@ module.exports = function (publisher, subscriber) {
          */
         setId: function(id) {
             this.id = id;
+            log.info('HANDLER: Set ID:', id);
         },
+        
         
         /**
          * Устанавливает идентификатор генератора
@@ -37,14 +37,16 @@ module.exports = function (publisher, subscriber) {
             this.generatorId = id;
         },
 
+
         /**
          * Публикует событие добавления нового обработчика сообщений
          */
         add: function() {
             if (this.id !== this.generatorId) {
-                 publisher.publish('ADD:HANDLER', this.id); 
+                publisher.publish('ADD:HANDLER', this.id); 
             }  
         },
+        
         
         /**
          * Публикует событие удаления обработчика сообщений
@@ -57,6 +59,7 @@ module.exports = function (publisher, subscriber) {
             }
 
         },
+
 
         /**
          * Подписка на события от генератора
@@ -74,12 +77,44 @@ module.exports = function (publisher, subscriber) {
             subscriber.on("message", function(channel, message) {  
                 
                 if (channel === getMessageChannel) {
+                    
+                    this.read(message, this.save);
+                    
                     log.info('Get a message:', message, 'to', channel);
+                    
                 }   
                 
             }.bind(this));
 
-        } 
+        },
+        
+        
+        /**
+         * Обработка сообщения (eventHandler)
+         * 
+         * @param {String} msg
+         * @param {Function} callback
+         */
+        read: function(msg, callback) {
+            function onComplete(){
+                var error = Math.random() > 0.85;
+                callback(error, msg);
+            }
+            // processing takes time...
+            setTimeout(onComplete, Math.floor(Math.random()*1000));
+        },
+        
+        
+        /**
+         * Сохранение сообщения
+         * 
+         * @param {Boolean} error
+         * @param {Function} msg
+         */
+        save: function(error, msg) {
+            errorCollector.sadd('errors', msg);
+            log.info('Error:', error, 'msg', msg);
+        }  
         
     };
 };

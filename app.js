@@ -11,13 +11,14 @@ if (!clientID) {
 
 log.info('Start client:', clientID);
 
-var redis       = require('redis');
+var redis           = require('redis');
 
-var subscriber  = redis.createClient();
-var publisher   = redis.createClient();
+var subscriber      = redis.createClient();
+var publisher       = redis.createClient();
+var errorCollector  = redis.createClient();
 
 var generator   = require('./generator')(publisher, subscriber);
-var handler     = require('./handler')(publisher, subscriber);
+var handler     = require('./handler')(publisher, subscriber, errorCollector);
 
 setClient(clientID);
 setGenerator('client1');
@@ -56,7 +57,6 @@ if (handler.id !== handler.generatorId) {
  
  
 function shutdown() {
-    console.log('shutdown');
     handler.remove();
     generator.stop();
     
