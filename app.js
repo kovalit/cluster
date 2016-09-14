@@ -9,7 +9,7 @@ if (!clientID) {
     process.exit(1);
 }
 
-log.info('Start client:', clientID);
+log.info('APP. Start client:', clientID);
 
 var redis           = require('redis');
 
@@ -17,67 +17,70 @@ var subscriber      = redis.createClient();
 var publisher       = redis.createClient();
 var errorCollector  = redis.createClient();
 
+var client;
 var generator   = require('./generator')(publisher, subscriber);
 var handler     = require('./handler')(publisher, subscriber, errorCollector);
 
-setClient(clientID);
-setGenerator('client1');
-subscribe();
 
-handler.add();
+var isGenerator;
+
+
+
+function setClient(generatorId) {
+    isGenerator = clientID === generatorId;
+    
+    if (isGenerator) {
+        client = generator;
+    }
+    else {
+        client = handler;
+    }
+    
+    client.setId(clientID);
+    client.unsubscribe();
+    client.subscribe();
+}
+
+setClient('client1');
+
+client.add();
+
 
 // Switcher
-if (handler.id !== handler.generatorId) {
+if (!isGenerator) {
     
-      subscriber.subscribe('SET:GENERATOR');
-      subscriber.subscribe(handler.id + ':SET:POOL');  
+    var setPoolChannel =  clientID + ':SET:POOL';
+    
+    subscriber.subscribe('SET:GENERATOR');
+    subscriber.subscribe(setPoolChannel);  
 
-      subscriber.on("message", function(channel, message) {
+    subscriber.on("message", function(channel, message) {
 
-        if (channel === 'SET:GENERATOR') {
-            
-            setGenerator(message);
-            
-            if (handler.id === message) {
-                subscriber.unsubscribe();
-                subscribe();
+      if (channel === 'SET:GENERATOR') {
+            if (message === clientID) {
+                setClient(message);
             }
-            
-            log.info('Swith generator to:', message);
 
-        } else if (channel === handler.id + ':SET:POOL') {
+          log.info('APP: Swith generator to:', message);
 
-            generator.restorePool(message);
-            generator.send();
+      } else if (channel === setPoolChannel) {
 
-        }
+          log.info('APP: Set pool:', message);
 
-     });
+          generator.restorePool(message);
+          generator.send();
+
+      }
+
+   });
  }
  
  
 function shutdown() {
-    handler.remove();
-    generator.stop();
-    
+    client.close();
     process.exit(1);
 }
 
-function setClient(id) {
-    generator.setClientId(id);
-    handler.setId(id);
-}
-
-
-function setGenerator(id) {
-    generator.setId(id);
-    handler.setGeneratorId(id);
-}
-
-function subscribe() {
-    generator.subscribe();
-    handler.subscribe();
-}
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
