@@ -58,7 +58,7 @@ module.exports = function (publisher, subscriber) {
         _pool = JSON.parse(handlerList);
 
         this.removeHandlerId(this.id);
-
+        log.info('GENERATOR this.id:', this.id);
         log.info('GENERATOR Restore pool:', _pool);
     },
 
@@ -137,14 +137,15 @@ module.exports = function (publisher, subscriber) {
      * Передает новому генератору пул обработчиков 
      */
     generator.close = function() {
-
+        log.info('GENERATOR close'); 
         subscriber.unsubscribe();
 
         if (_pool.length > 0) {
             var handlerId       = this.getHandlerId();
             var setPoolChannel  = handlerId + ':SET:POOL';
+            var setGenChannel   = handlerId + ':SET:GENERATOR';
 
-            publisher.publish('SET:GENERATOR', handlerId); 
+            publisher.publish(setGenChannel, handlerId); 
             publisher.publish(setPoolChannel, JSON.stringify(_pool));
             
             log.info('GENERATOR', setPoolChannel, JSON.stringify(_pool)); 
