@@ -22,13 +22,13 @@ else {
  */
 function main() {
 
-    var clientID    = process.env.clientID;
-    var worker;
-
-    if (!clientID) {
+    if (!process.env.clientID) {
         log.error('APP Environment variable (clientID) is not set.');
         process.exit(1);
     }
+    
+    var clientID = [process.env.clientID, randomString(4)].join(':');
+    var worker;
 
     log.info('APP Start client:', clientID);
     
@@ -52,6 +52,7 @@ function main() {
            client.switchEvent(isGenerator, clientID, function() {
                 worker = client.create(true, clientID);
                 worker.restore();
+                log.info('APP Restore worker');
            });
     });  
     
@@ -63,6 +64,20 @@ function main() {
            process.exit(1); 
         }); 
     };
+    
+    /**
+     * 
+     * @param {type} length
+     * @returns {String}Генерация случайной строки
+     */
+    function randomString(length) {
+        var text = "";
+        var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        for(var i = 0; i < length; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
+    }
 
     /**
      * События завершения приложения

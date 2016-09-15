@@ -85,6 +85,7 @@ module.exports = function (publisher, subscriber, redisClient) {
                 if(err) throw err;
                 
                 redisClient.set("generatorId", this.id);
+                log.info('GENERATOR Save generatorId:', this.id);
                 
                 this.send();
                 
