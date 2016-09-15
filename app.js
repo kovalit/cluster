@@ -1,83 +1,96 @@
 "use strict";
 
-var errors      = require('./errors');
 var redis       = require('redis');
+var parseArgs   = require('minimist');
+var async       = require('async');
 var generator   = require('./generator');
 var handler     = require('./handler');
-var parseArgs   = require('minimist')
+var getErrors   = require('./errors');
 var log         = require('./log')(module);
 
 /**
- * Проверка режима запуска
+ * Переключение между режимами запуска
  */
 var argv = parseArgs(process.argv.slice(2));
 if (argv._[0] === 'getErrors') {
-    errors();
+    getErrors();
 }
 else {
-    init();
+    main();
 }
   
 /**
- * 
+ * Основной режим
  */
-function init() {
+function main() {
 
     var clientID    = process.env.clientID;
 
     if (!clientID) {
-        log.error('Environment variable (clientID) is not set.');
+        log.error('APP Environment variable (clientID) is not set.');
         process.exit(1);
     }
 
-    log.info('APP. Start client:', clientID);
+    log.info('APP Start client:', clientID);
 
-    var subscriber      = redis.createClient();
     var publisher       = redis.createClient();
-    var errorCollector  = redis.createClient();
+    var subscriber      = redis.createClient();
+    var redisClient     = redis.createClient();
 
-    var _generator      = generator(publisher, subscriber);
-    var _handler        = handler(publisher, subscriber, errorCollector);
+    var _generator      = generator(publisher, subscriber, redisClient);
+    var _handler        = handler(publisher, subscriber, redisClient);
     
-    var isGenerator = 'client1' === clientID;
-    var client = setClient(isGenerator, clientID);
+    var isGenerator     = false;
+    var client;
+    
+    async.waterfall([
 
-    client.add();
+        function(callback) {          
+            redisClient.get("generatorId", function(err, reply) {
+                if (err) callback(err);
+                
+                if (!reply) {
+                    redisClient.set("generatorId", clientID);
+                    isGenerator = true;
+                }
+                callback(null);
+            });
+            
+        }], function (err) {
+            if (err) throw err;
+            
+            client = setClient(isGenerator, clientID);
+            client.add();
+            
+            /**
+            * Всех обработчиков подписываем на событие переключения в режим генератора. 
+            * Обратное не рассматриваем. В рамках данной задачи не обзначено
+            * событие, при котором действующий генератор становится обработчиком.
+            */
+           if (!isGenerator) {
+               
+               var setGenChannel = clientID + ':SET:GENERATOR';
+               subscriber.subscribe(setGenChannel);  
 
-    /**
-     * Всех обработчиков подписывает на событие назначения генератором. 
-     * Обратное не рассматриваем. В рамках данной задачи и ее реализации,
-     * нет условий, при которых генератор становится обработчиком.
-     */
-    if (!isGenerator) {
+               subscriber.on("message", function(channel, message) {
+                    if (channel === setGenChannel) {
+                       client = setClient(true, clientID);
+                       client.restore();
 
-        var setPoolChannel  =  clientID + ':SET:POOL';
-        var setGenChannel   =  clientID + ':SET:GENERATOR';
+                       log.info('APP Swith generator to:', message);
+                    }
+              });
+           };
+    });  
 
-        subscriber.subscribe(setPoolChannel);
-        subscriber.subscribe(setGenChannel);  
 
-        subscriber.on("message", function(channel, message) {
-            if (channel === setGenChannel) {
-                console.log(clientID);
-                client = setClient(true, clientID);
-
-                log.info('APP: Swith generator to:', message);
-
-          } else if (channel === setPoolChannel) {
-
-                log.info('APP: Set pool:', message);
-
-                _generator.restorePool(message);
-                _generator.send();
-
-          }
-
-       });
-    };
 
     /**
      * Устанавливает тип клиента: генератор или обработчик
+     * 
+     * @param {Boolean} isGen
+     * @param {String} clientId
+     * @return {Object} _client
      */
     function setClient(isGen, clientId) {
                 
@@ -101,8 +114,9 @@ function init() {
      * Закрывает соединение и завершает приложение
      */
     function shutdown() {
-        client.close();
-        process.exit(1);
+        client.close(function() {
+           process.exit(1); 
+        }); 
     };
 
     /**
@@ -111,7 +125,7 @@ function init() {
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
     process.on('uncaughtException', function(e){
-        console.log('[uncaughtException] app will be terminated: ', e.stack);
+        log.error('[uncaughtException] app will be terminated:', e.stack);
         shutdown();
     });
 

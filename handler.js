@@ -3,7 +3,7 @@
 var log     = require('./log')(module);
 var client  = require('./client')('HANDLER');
 
-module.exports = function (publisher, subscriber, errorCollector) {
+module.exports = function (publisher, subscriber, redisClient) {
     
     var handler = Object.create(client);
     
@@ -13,15 +13,6 @@ module.exports = function (publisher, subscriber, errorCollector) {
     handler.add = function() {
         publisher.publish('ADD:HANDLER', this.id);  
         log.info('HANDLER Added:', this.id);
-    };
-    
-    /**
-     * Публикует событие удаления обработчика сообщений
-     */
-    handler.close = function() { 
-        subscriber.unsubscribe();
-        publisher.publish('REMOVE:HANDLER', this.id); 
-
     };
     
     /**
@@ -45,14 +36,14 @@ module.exports = function (publisher, subscriber, errorCollector) {
 
         }.bind(this));
 
-    },
+    };
             
     /**
      * Отписка от событий
      */
     handler.unsubscribe = function() {
          subscriber.unsubscribe();
-    }
+    };
     
   
     /**
@@ -68,7 +59,7 @@ module.exports = function (publisher, subscriber, errorCollector) {
         }
         // processing takes time...
         setTimeout(onComplete, Math.floor(Math.random()*1000));
-    },
+    };
 
 
     /**
@@ -78,9 +69,28 @@ module.exports = function (publisher, subscriber, errorCollector) {
      * @param {Function} msg
      */
     handler.save = function(error, msg) {
-        errorCollector.sadd('errors', msg);
+        redisClient.sadd('errors', msg);
         //log.info('Error:', error, 'msg', msg);
     }; 
+    
+    /**
+     * Публикует событие удаления обработчика сообщений
+     */
+    handler.close = function(callback) { 
+        
+        publisher.publish('REMOVE:HANDLER', this.id); 
+        
+        subscriber.unsubscribe();
+        
+        publisher.quit();
+        subscriber.quit();
+        redisClient.quit();
+        
+        log.info('HANDLER Close'); 
+        
+        callback();
+        
+    };
     
     
     return handler;

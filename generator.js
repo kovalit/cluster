@@ -1,9 +1,10 @@
 "use strict";
 
+var async   = require('async');
 var log     = require('./log')(module);
 var client  = require('./client')('GENERATOR');
 
-module.exports = function (publisher, subscriber) {
+module.exports = function (publisher, subscriber, redisClient) {
     
     var _pool       = [];
     
@@ -20,7 +21,7 @@ module.exports = function (publisher, subscriber) {
             this.send();
         }
         log.info('GENERATOR Connect a new handler:', id);
-    },
+    };
 
     /**
      * Получает идентификатор обработчика из пула генератора
@@ -30,7 +31,7 @@ module.exports = function (publisher, subscriber) {
     generator.getHandlerId = function(){
         var rand = Math.floor(Math.random() * _pool.length);
         return _pool[rand];
-    },
+    };
 
 
     /**
@@ -45,22 +46,66 @@ module.exports = function (publisher, subscriber) {
             }
         }
         log.info('GENERATOR Disconnect a handler:', id);
-    },
+    };
+            
+            
+    /**
+     * Восстанавливает генератор
+     */
+    generator.restore = function() {
+        async.waterfall([
+            
+                this.restorePool.bind(this),
+                
+                this.restoreCounter.bind(this)
+                
+            ], function (err) {
+                
+                if(err) throw err;
+                
+                this.send();
+                
+          }.bind(this));
+    };
 
 
     /**
      * Восстанавливает пул генератора из списка обработчиков
-     * 
-     * @param {String} handlerList
      */
-    generator.restorePool = function(handlerList) {
+    generator.restorePool = function(callback) {
 
-        _pool = JSON.parse(handlerList);
+        redisClient.get("pool", function(err, poolString) {
+            if (err) throw err;
 
-        this.removeHandlerId(this.id);
-        log.info('GENERATOR this.id:', this.id);
-        log.info('GENERATOR Restore pool:', _pool);
+            _pool = JSON.parse(poolString);
+            
+            this.removeHandlerId(this.id);
+            
+            log.info('GENERATOR Restore pool:', this.id);
+            
+            callback(null);
+
+        }.bind(this));
+           
     },
+            
+    /**
+     * Восстанавливает счетчик
+     */
+    generator.restoreCounter = function(callback) {
+
+        redisClient.get("counter", function(err, cnt) {
+            if (err) throw err;
+            
+            this.cnt = cnt;
+            
+            log.info('GENERATOR Restore counter:', this.cnt);
+            
+            callback(null);
+
+        }.bind(this));
+           
+    };
 
 
     /**
@@ -89,14 +134,14 @@ module.exports = function (publisher, subscriber) {
             }
 
         }.bind(this));
-    },
+    };
             
     /**
      * Отписка от событий
      */
     generator.unsubscribe = function() {
          subscriber.unsubscribe();
-    }
+    };
 
 
     /**
@@ -105,7 +150,7 @@ module.exports = function (publisher, subscriber) {
     generator.getMessage = function(){
         this.cnt = this.cnt || 0;
         return this.cnt++;
-    },
+    };
 
 
     /**
@@ -129,27 +174,43 @@ module.exports = function (publisher, subscriber) {
 
         }.bind(this), 2000);
 
-    },
+    };
 
     /**
-     * Остановка текущего генератора. 
-     * Публикует сообщение всем обработчикам о назначении нового генератора.
-     * Передает новому генератору пул обработчиков 
+     * Остановка текущего генератора. Выбираем новый генератор и публикуем для 
+     * него соответствующее событие. Назначение генератора позволит избежать 
+     * излишних действий со стороны обработчиков. Другой вариант - генератором 
+     * становится обработчик, который первым занял его место.
+     * 
      */
-    generator.close = function() {
-        log.info('GENERATOR close'); 
-        subscriber.unsubscribe();
-
+    generator.close = function(callback) {
+        
         if (_pool.length > 0) {
             var handlerId       = this.getHandlerId();
-            var setPoolChannel  = handlerId + ':SET:POOL';
             var setGenChannel   = handlerId + ':SET:GENERATOR';
 
             publisher.publish(setGenChannel, handlerId); 
-            publisher.publish(setPoolChannel, JSON.stringify(_pool));
+            redisClient.set("pool", JSON.stringify(_pool));
+            redisClient.set("counter", this.cnt);
             
-            log.info('GENERATOR', setPoolChannel, JSON.stringify(_pool)); 
+            log.info('GENERATOR Set generator:', handlerId); 
         };
+        
+        redisClient.del("generatorId", function(err, o) {
+            if (err) throw err;
+            
+            log.info('GENERATOR Delete generatorId key in redis'); 
+            
+            subscriber.unsubscribe();
+            publisher.quit();
+            subscriber.quit();
+            redisClient.quit();
+            
+            log.info('GENERATOR Close');
+            
+            callback();
+         
+        });
 
     };
     
