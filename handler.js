@@ -87,7 +87,7 @@ module.exports = function (publisher, subscriber, redisClient) {
         }
     }; 
     
-    
+  
     
     /**
      * Публикует событие удаления обработчика сообщений
@@ -97,10 +97,6 @@ module.exports = function (publisher, subscriber, redisClient) {
         publisher.publish('REMOVE:HANDLER', this.id); 
         
         subscriber.unsubscribe();
-        
-        publisher.quit();
-        subscriber.quit();
-        redisClient.quit();
         
         log.info('HANDLER Close'); 
         

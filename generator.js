@@ -85,7 +85,7 @@ module.exports = function (publisher, subscriber, redisClient) {
                 if(err) throw err;
                 
                 redisClient.set("generatorId", this.id);
-                log.info('GENERATOR Save generatorId:', this.id);
+                log.info('GENERATOR Save generatorId', this.id);
                 
                 this.send();
                 
@@ -219,23 +219,22 @@ module.exports = function (publisher, subscriber, redisClient) {
             redisClient.set("counter", this.cnt);
             
             log.info('GENERATOR Set generator:', handlerId); 
-        };
-        
-        redisClient.del("generatorId", function(err, o) {
-            if (err) throw err;
-            
-            log.info('GENERATOR Delete generatorId key in redis'); 
             
             subscriber.unsubscribe();
-            publisher.quit();
-            subscriber.quit();
-            redisClient.quit();
-            
-            log.info('GENERATOR Close');
-            
             callback();
+
+        } else {
+            
+            redisClient.del("generatorId", function(err, o) {
+                if (err) throw err;
+
+                log.info('GENERATOR Delete generatorId key in redis'); 
+
+                subscriber.unsubscribe();
+                callback();
          
-        });
+            });
+        };
 
     };
     

@@ -58,7 +58,10 @@ module.exports = {
                     redisClient.set("generatorId", clientId);
                     isGenerator = true;
                 }
+                
                 callback(null, isGenerator);
+                
+                
             });
         },
         
