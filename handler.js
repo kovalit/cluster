@@ -53,24 +53,26 @@ module.exports = function (publisher, subscriber, redisClient) {
      * @param {Function} callback
      */
     handler.read = function(msg, callback) {
-//        function onComplete(){
-//            var error = Math.random() > 0.85;
-//            callback(error, msg);
-//        }
+        function onComplete(){
+            var error = Math.random() > 0.85;
+            callback(error, msg);
+        }
         // processing takes time...
-        //setTimeout(onComplete, Math.floor(Math.random()*1000));
+        setTimeout(onComplete, Math.floor(Math.random()*1000));
     };
 
 
     /**
-     * Сохранение сообщения
+     * Сохранение сообщений с ощибкой
      * 
      * @param {Boolean} error
      * @param {Function} msg
      */
     handler.save = function(error, msg) {
-       // redisClient.sadd('errors', msg);
-        //log.info('Error:', error, 'msg', msg);
+        if (error) {
+            redisClient.sadd('errors', msg);
+            log.info('Error:', error, 'msg', msg);
+        }
     }; 
     
     /**
