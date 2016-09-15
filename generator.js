@@ -57,11 +57,13 @@ module.exports = function (publisher, subscriber, redisClient) {
             
                 this.restorePool.bind(this),
                 
-                this.restoreCounter.bind(this)
+                this.restoreCounter.bind(this) 
                 
             ], function (err) {
                 
                 if(err) throw err;
+                
+                redisClient.set("generatorId", this.id);
                 
                 this.send();
                 
@@ -78,8 +80,6 @@ module.exports = function (publisher, subscriber, redisClient) {
             if (err) throw err;
 
             _pool = JSON.parse(poolString);
-            
-            this.removeHandlerId(this.id);
             
             log.info('GENERATOR Restore pool:', this.id);
             
@@ -165,9 +165,9 @@ module.exports = function (publisher, subscriber, redisClient) {
                 var handlerId   = this.getHandlerId();
                 var message     = this.getMessage();
 
-                publisher.publish(handlerId + ':MESSAGE', 'Hello ' + message);
+                publisher.publish(handlerId + ':MESSAGE', message);
 
-                log.info('GENERATOR Send message:', handlerId, 'Hello ' + message); 
+                log.info('GENERATOR Send message:', handlerId, message); 
 
                 this.send();
             }
@@ -189,7 +189,10 @@ module.exports = function (publisher, subscriber, redisClient) {
             var handlerId       = this.getHandlerId();
             var setGenChannel   = handlerId + ':SET:GENERATOR';
 
+            this.removeHandlerId(handlerId);
+            
             publisher.publish(setGenChannel, handlerId); 
+            
             redisClient.set("pool", JSON.stringify(_pool));
             redisClient.set("counter", this.cnt);
             
