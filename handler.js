@@ -1,11 +1,23 @@
 "use strict";
 
 var log     = require('./log')(module);
-var client  = require('./client')('HANDLER');
 
 module.exports = function (publisher, subscriber, redisClient) {
     
-    var handler = Object.create(client);
+    /**
+     * Обработчик сообщений
+     */
+    var handler = {};
+    
+    /**
+     * Устанавливает идентификатор текущего экземпляра
+     * 
+     * @param {String} id
+     */
+    handler.setId = function(id) {
+        this.id = id;
+        log.info('HANDLER Set client id:', id);
+    },
     
     /**
      * Публикует событие добавления нового обработчика сообщений
@@ -74,6 +86,8 @@ module.exports = function (publisher, subscriber, redisClient) {
             log.info('Error:', error, 'msg', msg);
         }
     }; 
+    
+    
     
     /**
      * Публикует событие удаления обработчика сообщений

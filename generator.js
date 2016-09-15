@@ -2,13 +2,34 @@
 
 var async   = require('async');
 var log     = require('./log')(module);
-var client  = require('./client')('GENERATOR');
+//var client  = require('./client')('GENERATOR');
 
 module.exports = function (publisher, subscriber, redisClient) {
     
+    /*
+     * Пул подключенных обработчиков
+     */
     var _pool       = [];
     
-    var generator   = Object.create(client);
+    /**
+     * Генератор сообщений
+     */
+    var generator   = {};
+    
+    /**
+     * Устанавливает идентификатор текущего экземпляра
+     * 
+     * @param {String} id
+     */
+    generator.setId = function(id) {
+        this.id = id;
+        log.info('GENERATOR Set client id:', id);
+    },
+       
+           
+    generator.add = function() {
+        return null;
+    },        
     
     /**
      * Добавляет идентификатор обработчика событий в пул генератора
@@ -172,7 +193,7 @@ module.exports = function (publisher, subscriber, redisClient) {
                 this.send();
             }
 
-        }.bind(this), 2000);
+        }.bind(this), 500);
 
     };
 

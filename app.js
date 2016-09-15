@@ -1,10 +1,8 @@
 "use strict";
 
-var redis       = require('redis');
 var parseArgs   = require('minimist');
 var async       = require('async');
-var generator   = require('./generator');
-var handler     = require('./handler');
+var client      = require('./client');
 var getErrors   = require('./errors');
 var log         = require('./log')(module);
 
@@ -25,6 +23,7 @@ else {
 function main() {
 
     var clientID    = process.env.clientID;
+    var worker;
 
     if (!clientID) {
         log.error('APP Environment variable (clientID) is not set.');
@@ -32,89 +31,35 @@ function main() {
     }
 
     log.info('APP Start client:', clientID);
-
-    var publisher       = redis.createClient();
-    var subscriber      = redis.createClient();
-    var redisClient     = redis.createClient();
-
-    var _generator      = generator(publisher, subscriber, redisClient);
-    var _handler        = handler(publisher, subscriber, redisClient);
-    
-    var isGenerator     = false;
-    var client;
     
     async.waterfall([
-
-        function(callback) {          
-            redisClient.get("generatorId", function(err, reply) {
-                if (err) callback(err);
-                
-                if (!reply) {
-                    redisClient.set("generatorId", clientID);
-                    isGenerator = true;
-                }
-                callback(null);
-            });
+        
+        function (callback) {
             
-        }], function (err) {
+            client.getType(clientID, callback);
+            
+        }], function (err, isGenerator) {
+        
             if (err) throw err;
             
-            client = setClient(isGenerator, clientID);
-            client.add();
+            worker = client.create(isGenerator, clientID);
             
             /**
             * Всех обработчиков подписываем на событие переключения в режим генератора. 
-            * Обратное не рассматриваем. В рамках данной задачи не обзначено
+            * Обратное не рассматриваем. В рамках данной задачи не обозначено
             * событие, при котором действующий генератор становится обработчиком.
             */
-           if (!isGenerator) {
-               
-               var setGenChannel = clientID + ':SET:GENERATOR';
-               subscriber.subscribe(setGenChannel);  
-
-               subscriber.on("message", function(channel, message) {
-                    if (channel === setGenChannel) {
-                       client = setClient(true, clientID);
-                       client.restore();
-
-                       log.info('APP Swith generator to:', message);
-                    }
-              });
-           };
+           client.switchEvent(isGenerator, clientID, function() {
+                worker = client.create(true, clientID);
+                worker.restore();
+           });
     });  
-
-
-
-    /**
-     * Устанавливает тип клиента: генератор или обработчик
-     * 
-     * @param {Boolean} isGen
-     * @param {String} clientId
-     * @return {Object} _client
-     */
-    function setClient(isGen, clientId) {
-                
-        var _client;
-
-        if (isGen) {
-            _client = _generator;
-        }
-        else {
-            _client = _handler;
-        }
-
-        _client.setId(clientId);
-        _client.unsubscribe();
-        _client.subscribe();
-
-        return _client;
-    };
     
     /**
      * Закрывает соединение и завершает приложение
      */
     function shutdown() {
-        client.close(function() {
+        worker.close(function() {
            process.exit(1); 
         }); 
     };

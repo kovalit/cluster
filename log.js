@@ -15,7 +15,7 @@ function makeLogger(path) {
                 level: 'info'
             }),
             
-            new (winston.transports.File)({ filename: "logs/generator.log", timestamp: false })
+          //  new (winston.transports.File)({ filename: "logs/generator.log", timestamp: false })
         ];
         
     } else if (path.match(/handler.js$/)) {
@@ -25,7 +25,7 @@ function makeLogger(path) {
                 level: 'info'
             }),
             
-            new (winston.transports.File)({ filename: "logs/handler.log",  timestamp: false })
+          //  new (winston.transports.File)({ filename: "logs/handler.log",  timestamp: false })
         ];
         
     } else {
